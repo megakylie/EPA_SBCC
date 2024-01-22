@@ -1,0 +1,83 @@
+﻿plant_visited,genus,family,status,CommonName
+Achillea sp.,Achillea,Asteraceae,native,Yarrow
+Aeonium sp.,Aeonium,Crassulaceae,not native,Tree houseleeks
+Aloysia citrodora,Aloysia,Verbenaceae,not native,Lemon Beebrush
+Anagallis avernsis,Anagallis,Primulaceae,not native,Scarlet pimpernel
+Artichoke,Cynara,Asteraceae,food plant  ,Artichoke
+Asclepias sp.,Asclepias,Apocynaceae,native,Milkweed
+Aster - pink,,Asteraceae,not native,pink aster
+Borago officinalis,Borago,Boraginaceae,not native,Borage
+Brassica oleracea cultivar,Brassica,Brassicaeae,food plant  ,Wild cabbage
+Brassicaeae sp,,Brassicaeae,,Mustards
+Calendula officinalis,Calendula,Asteraceae,not native,Common marigold
+Calendula sp.,Calendula,Asteraceae,not native,Calendula
+Ceanothus sp.,Ceanothus,Rhamnaceae,native,California lilacs
+Celery,Apium,Apiaceae,food plant  ,Celery
+Centaurea cyanus,Centaurea,Asteraceae,not native,Cornflower
+Centaurea sp.,Centaurea,Asteraceae,not native,Knapweeds
+cf Malva,,Malvaceae,,Mallow family
+Cistus creticus,Cistus,Cistaceae,not native,Pink rock-rose
+Citrus sp.,Citrus,Aurantioideae,food plant  ,Citrus
+Coreopsis tinctoria,Coreopsis,Asteraceae,not native,Plains coreopsis
+Cosmos,Cosmos,Coreopsideae,not native,Cosmos
+Cudweed,,Asteraceae,,Cudweed
+Diplotaxis tenuifolia,Diplotaxis,Brassicaeae,not native,Perennial wall-rocket
+Eriodictyon californicum,Eriodictyon,Boraginaceae,native,California yerba santa
+Eriogonum fasiculatum,Eriogonum,Polygonaceae,native,California buckwheat
+Eriogonum grande ssp. rubescens,Eriogonum,Polygonaceae,native,Red-flowered island buckwheat
+Eriophyllum confertiflorum,Eriophyllum,Asteraceae,native,Golden Yarrow
+Eruca sp.,Eruca,Brassicaeae,not native,Arugula
+Eschscholzia californica,Eschscholzia,Papaveraceae,native,California poppy
+Fabacaeae,,Fabaceae,,Legumes
+Fragaria sp,Fragaria,Rosaceae,food plant  ,Strawberry
+Gaillardia pulchella,Gaillardia,Asteraceae,not native,Firewheel
+Geranium sp.,Geranium,Geraniaceae,not native,Geraniums
+Guava,,Myrtaceae,food plant  ,Guava
+Lathyrus odoratus,Lathyrus,Fabaceae,not native,Sweet pea
+Lavandula sp.,Lavandula,Lamiaceae,not native,Lavender
+Lavandula stoechas,Lavandula,Lamiaceae,not native,French lavender
+Lobularia maritima,Lobularia,Brassicaeae,not native,Sweet alyssum
+Lycianthes sp.,Lycianthes,Solanaceae,,Nightshade
+Malacothamnus palmeri,Malacothamnus,Malvaceae,native,Palmer's bush mallow
+Malva sp.,Malva,Malvaceae,,Mallow  
+Medicago polymorpha,Medicago,Fabaceae,not native,Burr medic
+Mentha sp.,Mentha,Lamiaceae,food plant  ,Mint
+Nasturtium sp.,Nasturtium,Tropaeolaceae,not native,Watercress
+Ocimum kilimandscharicum x basilicum,Ocimum,Lamiaceae,food plant  ,African blue basil
+Oenothera lindheimeri,Oenothera,Onagraceae,not native,White gaura
+org/yellow bush flower,,,,Orange-yellow bush flower
+Oxalis stricta,Oxalis,Oxalidaceae,not native,Common yellow oxalis
+Passiflora sp.,Passiflora,Passifloraceae,food plant  ,Passionfruit
+Phacelia sp.,Phacelia,Boraginaceae,native,Scorpionweed
+Pomegranate sp.,Punica,Lythraceae,food plant  ,Pomegranate
+Primula sp.,Primula,Primulaceae,,Primula
+Prunus ilicifolia ssp. lyonii,Prunus,Rosaceae,native,Catalina Cherry
+Prunus persica,Prunus,Rosaceae,food plant  ,Peach
+Prunus persica 'May Flower Peach',Prunus,Rosaceae,food plant  ,May Flower Peach
+Prunus salicina,Prunus,Rosaceae,food plant  ,Chinese plum
+Prunus sp. 'Flavor King Pluot',Prunus,Rosaceae,food plant  ,Flavor King Pluot
+Prunus sp. 'Pluot',Prunus,Rosaceae,food plant  ,Pluot
+Punica sp,Punica,Lythraceae,food plant  ,Pomegranate
+Romneya sp.,Romneya,Papaveraceae,native,Matilija poppy
+Salvia azurea,Salvia,Lamiaceae,not native,Azure blue sage
+Salvia 'Bon Bon',Salvia,Lamiaceae,native,Salvia 'Bon Bon' (cultivar)
+Salvia canariensis,Salvia,Lamiaceae,not native,Canary Island sage
+Salvia leucantha,Salvia,Lamiaceae,not native,Mexican bush sage
+Salvia leucophylla,Salvia,Lamiaceae,native,Purple sage
+"Salvia leucophylla ""Amythest Bluff""",Salvia,Lamiaceae,native,Purple sage (cultivar)
+Salvia mellifera,Salvia,Lamiaceae,native,Black sage
+Salvia microphylla,Salvia,Lamiaceae,not native,Baby sage
+Salvia rosmarinus,Salvia,Lamiaceae,not native,Rosemary
+Salvia sp.,Salvia,Lamiaceae,,Sage 
+Salvia spathacea,Salvia,Lamiaceae,native,Hummingbird sage
+Sedum sp.,Sedum,Crassulaceae,not native,Stonecrops
+Senna sp.,Senna,Fabaceae,not native,Senna
+Sisyrinchium bellum,Sisyrinchium,Iridaceae,native,Blue-eyed Grass
+Squash,,Cucurbiteae,food plant  ,Squash
+Tagetes sp.,Tagetes,Asteraceae,not native,Marigolds
+Tropaleolum sp.,Tropaleolum,Tropaeolaceae,not native,Nasturtium
+Unknown Purple,,,,Purple flowered plant
+Vicia faba,Vicia,Fabaceae,food plant  ,Fava Beans
+white-pinkish flower,,,,White-pink flowered plant
+yellow flower lobed leaves ,,,,Yellow flowered plant
+Zinnias,,Asteraceae,not native,Zinnias

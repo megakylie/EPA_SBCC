@@ -1,0 +1,54 @@
+site,floral_visitor_ID,total,num_rows
+Brad,Bumble,1,1
+Brad,Carpenter,2,2
+Brad,Fly,20,12
+Brad,Green Sweat Bee,2,2
+Brad,HB,28,21
+Brad,na,0,11
+Brad,SDB,9,5
+Brad,SSB,10,9
+Brad,Wasp,1,1
+La Cumbre,Bug,1,1
+La Cumbre,Bumble,7,6
+La Cumbre,Fly,29,27
+La Cumbre,Green Sweat Bee,2,2
+La Cumbre,HB,233,103
+La Cumbre,HLB,1,1
+La Cumbre,MHBB,1,1
+La Cumbre,na,0,7
+La Cumbre,SDB,2,2
+La Cumbre,SHBB,9,7
+La Cumbre,SSB,10,7
+Mesa,Bumble,5,5
+Mesa,Carpenter,1,1
+Mesa,Fly,23,18
+Mesa,Green Sweat Bee,1,1
+Mesa,HB,229,88
+Mesa,HLB,4,4
+Mesa,na,0,5
+Mesa,SDB,1,1
+Mesa,SHBB,3,3
+Mesa,SSB,2,2
+SBBG,Bug,4,4
+SBBG,Bumble,10,7
+SBBG,Fly,17,7
+SBBG,Green Sweat Bee,6,6
+SBBG,HB,261,39
+SBBG,HLB,22,11
+SBBG,MHBB,8,7
+SBBG,SDB,25,11
+SBBG,SHBB,23,12
+SBBG,SSB,30,15
+SBBG,Wasp,6,6
+SBCC,Beetle,2,2
+SBCC,Bug,2,2
+SBCC,Bumble,46,29
+SBCC,Carpenter,4,3
+SBCC,Fly,45,17
+SBCC,HB,554,122
+SBCC,Hummingbird,1,1
+SBCC,MHBB,1,1
+SBCC,Moth/Butterfly,1,1
+SBCC,na,0,4
+SBCC,SHBB,2,2
+SBCC,SSB,3,3

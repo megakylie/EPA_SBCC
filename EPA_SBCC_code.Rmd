@@ -1,0 +1,438 @@
+---
+title: "PollinatorAnalysis"
+author: "Kylie Etter"
+date: "12/7/2021"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is an R Markdown document for analysis of the pollinator data collected as a part of the SBCC EPA Pollinator Monitoring project. 
+
+#Step 1. Download packages.
+```{r Download packages}
+library(tidyverse)
+library(RColorBrewer)
+library(ggplot2)
+library(ggpubr)
+library (bipartite)
+library(bipartiteD3)
+library(agricolae)
+```
+
+#Step 2. Import Data
+```{r Import Data}
+#all the pollinator monitoring data collected in 2021 and 2022
+poll_data = read_csv("data/SBCC_EPA_PollinatorMonitoring_2023.csv") %>% select(site, date, month, year, observer, transect, start_time, end_time, wind, wind2, sky, temp_Crounded, floral_visitor_ID, MoreSpecificID, plant_visiting, num_individuals) %>% filter(!is.na(site))
+
+
+#list of all the plants visited, with type (native, non-native, food crop) and common name
+plant_info = read_csv("data/SBCC_EPA_PollinatorMonitoring_plantINFO.csv") %>% rename(plant_visiting ="plant_visited")
+
+#All vegetation data collected in 2021 and 2022. 2021 data was only recorded for a few visits and and a few variables. In 2022 more detailed data was collected from all of the pollinator observation garden visits. 2021 and 2022 data could be used for looking at trends for all trips in 2022 and some in 2021, or only 2022 data can be used for more detail
+veg_data_long = read_csv("data/SBCC_EPA_GardenVeg.csv")
+
+veg_data <- veg_data_long %>% distinct(site, date, .keep_all=TRUE) %>% filter(!is.na(site)) %>% select(site, date, month, year, garden_fls_bin, garden_percov_natives, garden_native_taxa_flwrng, garden_native_bin, garden_native_flwrs, tran_num_flwrn_taxa,tran_num_native_flwrn_taxa, tran_num_native_fls, tran_num_fls_UNITadjustment)
+
+#old way of looking at the data 
+poll_analysis = read_csv("data/poll_analysis_data.csv")
+```
+
+#Step 3. Stats and Figures 
+
+##Summary Visitors to Site Tables and Figures
+To understand what the proportions of different visitor types overall and to the different sites.
+```{r Summary Stats & Figures}
+# by site 
+poll_summarize_site = poll_data %>% group_by(site) %>% mutate(num_visits=n_distinct(date)) %>% mutate(number_individuals = sum(num_individuals, na.rm=TRUE), num_rows=n(), insect_rich = n_distinct(floral_visitor_ID), num_visits=n_distinct(date)) %>% select(site, number_individuals, num_rows, insect_rich, num_visits) %>% distinct(site, .keep_all=TRUE) 
+
+# by insect type 
+poll_summarize_visitor = poll_data %>% group_by(floral_visitor_ID) %>% summarise(total=sum(num_individuals, na.rm=TRUE), num_rows=n())
+
+#by site and type
+poll_summarize_combo = poll_data %>% group_by(site, floral_visitor_ID) %>% summarise(total=sum(num_individuals, na.rm=TRUE)) %>% filter(!is.na(site)) %>% filter(!is.na(floral_visitor_ID))
+poll_summarize_combo_spread <- tidyr::spread(poll_summarize_combo, floral_visitor_ID, total, fill=0)
+
+write_csv(poll_summarize_combo_spread, "figures/poll_summarize.csv")
+
+
+poll_summarize_combo2 = left_join(poll_summarize_combo, poll_summarize_site)  
+
+#converting number of site visits to a number
+poll_summarize_combo2$num_visits = as.numeric(poll_summarize_combo2$num_visits)
+
+#averaging the number of visits per insect taxa by the number of site visits
+poll_summarize_combo2 = poll_summarize_combo2 %>%  mutate(Avg_visits = (total/num_visits)) %>% select(site, floral_visitor_ID, total, num_visits, Avg_visits)
+
+write_csv(poll_summarize_combo2, "figures/poll_summarize_combo2022.csv", na="")
+
+#getting more colors to make the graph
+nb.cols <- 19
+mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(nb.cols)
+
+#dodging bar graphs per site and taxa over the two years of observations  
+poll_summary3 <- ggplot(poll_summarize_combo2, aes(x=site, y=Avg_visits, fill=floral_visitor_ID)) + geom_bar(stat="identity", color="black", position="dodge") + labs(x="Garden Site", y="Average number of individuals observed", fill="Taxa") + theme_bw() + scale_y_continuous(expand=expansion(mult=c(0,0.01))) + theme(axis.text.x = element_text(angle=90, vjust=0.1, hjust=1))  + scale_fill_manual(values=mycolors)
+poll_summary3
+
+ggsave(plot=poll_summary3, filename="figures/poll_summary3.png", height=20, width=30, units="cm", dpi=300)
+```
+
+##Month Figures
+To understand the trends of visitation over months 
+```{r Month Analysis} 
+#Graph of the visitor abun and rich per month and site 
+poll_month = poll_data %>% group_by(site, month) %>% summarise(vis_abun=sum(num_individuals), n_rows = n(), num_visits=n_distinct(date), avg_vis_abun=vis_abun/num_visits)
+
+poll_month$month = as.character(poll_month$month)
+
+#This graph compares the month and the year to the average number of visits seen during a survey at each site 
+vis_abun_month = ggplot(poll_month) + geom_col(aes(x=month, y=avg_vis_abun, fill=month), color="black") + ylab("Avergae Number of Floral Visits") +facet_wrap(vars(site), scales="free") + scale_fill_brewer(palette="Set2")
+vis_abun_month
+
+ggsave(plot=vis_abun_month, filename="figures/pVisitorAbunByMonthBySite.png", height=20, width=30, units="cm", dpi=300)
+```
+
+
+##Stats
+To understand how visitor abundance and visitor group richness differs between the gardens. 
+```{r Statistical Analysis}
+#Comparing the visitor abundance and richness across the whole season at each site over the two years
+
+#compare the avg visits at each site 
+poll_data_visits = poll_data %>% group_by(site, date) %>% mutate(vis_abun=sum(num_individuals, na.rm=TRUE), n_rows = n(), vis_rich=n_distinct(floral_visitor_ID)) %>% select(site, date, vis_abun, year, n_rows, vis_rich)  %>% distinct(date, site, .keep_all=TRUE)
+
+#make any row with a total_abd of zero have a diversity of zero or else num_rows=diversity. Removing Somos semillas because only 2 dates
+poll_data_visits$vis_rich2 = as.double(poll_data_visits$vis_rich)
+
+poll_data_visits2 <- poll_data_visits %>% mutate(vis_rich = if_else(vis_abun==0, vis_abun, vis_rich2))
+
+# looking at the number of dates. 
+
+#Graph of the visitor abundance during the surveys at each site
+vis_abun_site = ggplot(poll_data_visits2, aes(x = site, y = vis_abun, group=site)) + geom_boxplot(aes(fill=site)) + stat_compare_means(method="kruskal") + stat_compare_means(label="p.signif", method="wilcox", ref.group='SBBG', hide.ns=TRUE, label.y=110)
+vis_abun_site = vis_abun_site + xlab("Garden") + ylab("Visitor Abundance") +   theme(legend.position="none") 
+vis_abun_site
+
+hsd1 = HSD.test(aov(vis_abun ~site, data=poll_data_visits2), 'site', group=T)
+hsd1
+
+#by site
+kruskal.test(vis_abun ~ site, data = poll_data_visits2)
+pairwise.wilcox.test(poll_data_visits2$vis_abun, poll_data_visits2$site,
+                 p.adjust.method = "BH")
+compare_means(vis_abun ~ site, data=poll_data_visits2)
+
+
+#by site and year
+kruskal.test(vis_abun ~ SiteYear, data = poll_data_visits2)
+pairwise.wilcox.test(poll_data_visits2$vis_abun, poll_data_visits2$SiteYear,
+                 p.adjust.method = "BH")
+
+#Graph of the the visitor richness to plots by year
+vis_rich_site = ggplot(poll_data_visits2, aes(x = site, y = vis_rich, group=site)) +  geom_boxplot(aes(fill=site)) 
+vis_rich_site = vis_rich_site + xlab("Garden") + ylab("Visitor Richness") +   theme(legend.position="none")  + stat_compare_means(aes(group = site), label.y=18)+ stat_compare_means(label="p.signif", method="wilcox", ref.group="SBBG", label.y=15)
+vis_rich_site
+
+#by site
+kruskal.test(vis_rich ~ site, data = poll_data_visits2)
+pairwise.wilcox.test(poll_data_visits2$vis_rich, poll_data_visits2$site,
+                 p.adjust.method = "BH")
+compare_means(vis_rich ~ site, data=poll_data_visits2)
+hsd2=HSD.test(aov(vis_rich~site, data=poll_data_visits2), "site", group=T)
+hsd2
+
+ggsave(plot=vis_abun_site, filename="figures/AbunSite.png", height=10, width=15, units="cm", dpi=300)
+ggsave(plot=vis_rich_site, filename="figures/RichSite.png", height=10, width=15, units="cm", dpi=300)
+
+```
+
+##Pollinator Networks 
+```{r}
+common_names = left_join(poll_data, plant_info)
+plant_summarize = common_names %>% group_by(site, floral_visitor_ID, CommonName) %>% summarise(total=sum(num_individuals)) %>%  na.omit %>% rename(pollinator_broad="floral_visitor_ID", plant="CommonName", interaction="total") 
+
+#Adding a webID to use the frame2webs function and renaming to frame2webs names. Then converting to dataframe
+interaction_matrix = as.data.frame(plant_summarize) %>% rename(freq="interaction", higher="plant", lower="pollinator_broad", webID="site")
+
+#Creating matrix reable for plotweb
+bipartite::frame2webs(interaction_matrix)-> InteractionMatrix
+InteractionMatrix
+
+#basic pollinator networks
+bipartite::plotweb(InteractionMatrix$Brad, text.rot=90,  col.low=c("#0066FF"), col.high= c("#669900"), ybig=1.2)
+bipartite::plotweb(InteractionMatrix$`Somos Semillas`, text.rot=90,  col.low=c("#0066FF"), col.high= c("#669900"), ybig=1.1, y.lim=c(0.1,2))
+bipartite::plotweb(InteractionMatrix$`La Cumbre`, text.rot=90,  col.low=c("#0066FF"), col.high= c("#669900"), ybig=1.1, y.lim=c(-0.1,2.7))
+bipartite::plotweb(InteractionMatrix$`Mesa Harmony`, text.rot=90,  col.low=c("#0066FF"), col.high= c("#669900"), ybig=1.2, y.lim=c(-0.1,2.5))
+bipartite::plotweb(InteractionMatrix$SBBG, text.rot=90,  col.low=c("#0066FF"), col.high= c("#669900"), ybig=1.2, y.lim=c(-0.1,2.5))
+bipartite::plotweb(InteractionMatrix$SBCC, text.rot=90,  col.low=c("#0066FF"), col.high= c("#669900"), ybig=1.2, y.lim=c(0.1,2.6))
+
+
+#interactive pollinator networks
+bipartite_D3(InteractionMatrix$Brad, PrimaryLab = "Pollinator", SecondaryLab= "Flower", colouroption = 'brewer', BrewerPalette = "Set2", Pad=2)
+bipartite_D3(InteractionMatrix$`Somos Semillas`, PrimaryLab = "Pollinator", SecondaryLab= "Flower", colouroption = 'brewer', BrewerPalette = "Set2", Pad=2)
+bipartite_D3(InteractionMatrix$`La Cumbre`, PrimaryLab = "Pollinator", SecondaryLab= "Flower", Pad=2, filename='La Cumbre', MainFigSize=c(800, 1500), IndivFigSize=c(200, 600), BoxLabPos=c(20,20), PercPos=c(200, 200), BarSize=20, MinWidth=5)
+bipartite_D3(InteractionMatrix$`Mesa Harmony`, PrimaryLab = "Pollinator", SecondaryLab= "Flower", Pad=2, filename='Mesa Harmony', MainFigSize=c(800, 1500), IndivFigSize=c(200, 600), BoxLabPos=c(20,20), PercPos=c(200, 200), BarSize=20, MinWidth=5)
+bipartite_D3(InteractionMatrix$'SBBG', PrimaryLab = "Pollinator", SecondaryLab= "Flower", Pad=2, filename='SBBG', MainFigSize=c(800, 1500), IndivFigSize=c(200, 600), BoxLabPos=c(20,20), PercPos=c(200, 200), BarSize=20, MinWidth=5)
+
+
+#stats
+
+#Somos Semillas
+networklevel(InteractionMatrix$`Somos Semillas`, index=c("connectance", "web asymmetry", "nestedness", "H2", "robustness"))
+#   connectance web asymmetry    nestedness            H2 robustness.HL robustness.LL 
+#    0.3500000     0.2307692    44.8468193     0.5291452     0.6285652     0.4405903 
+
+#Brad
+networklevel(InteractionMatrix$Brad, index=c("connectance", "web asymmetry", "nestedness", "H2", "robustness"))
+# connectance web asymmetry    nestedness            H2 robustness.HL robustness.LL 
+#   0.27272727    0.04761905   15.53716801    0.51076176    0.57092005    0.61105375
+
+#SBCC
+networklevel(InteractionMatrix$SBCC, index=c("connectance", "web asymmetry", "nestedness", "H2", "robustness"))
+#    connectance web asymmetry    nestedness            H2 robustness.HL robustness.LL 
+#    0.2038462     0.2121212     9.1323463     0.2946521     0.6341095     0.6091284 
+
+#Mesa Harmony 
+networklevel(InteractionMatrix$`Mesa Harmony`, index=c("connectance", "web asymmetry", "nestedness", "H2", "robustness"))
+#connectance web asymmetry    nestedness            H2 robustness.HL robustness.LL 
+#    0.21848739    0.09677419    8.84807539    0.20756865    0.64839396    0.60705623 
+
+#La Cumbre
+networklevel(InteractionMatrix$`La Cumbre`, index=c("connectance", "web asymmetry", "nestedness", "H2", "robustness"))
+#  connectance web asymmetry    nestedness            H2 robustness.HL robustness.LL 
+#    0.1542857     0.4000000     7.2904598     0.3217880     0.7132842     0.5526066 
+
+#SBBG
+networklevel(InteractionMatrix$SBBG, index=c("connectance", "web asymmetry", "nestedness", "H2", "robustness"))
+#  connectance web asymmetry    nestedness            H2 robustness.HL robustness.LL 
+#    0.33928571   -0.06666667   17.91803524    0.26111272    0.74659217    0.73605616 
+```
+
+
+##Comparing the plant and poll data 
+To understand how the plant community impacted floral visitors. In 2021 the only data that was taken was the name of the different flowering taxa along the transects. So the only comparable data to 2022 are the plant names, and the number of flowering taxa along the transect. First trying to look at that, so I can use some 2021 and 2022 data. 
+
+Additionally, I am doing some 2022 only stats because a lot more data was taken in 2022. 
+
+Then I removed SBBG data and did the same tests, SBBG is higher in abun and richness maybe due to the native plants, but also high surrounding area on intact natural spaces. Not landlocked. Found a significance in visitor richness by number of flowering taxa on transect (overall and with just 2022 data) & by number of flowers available on transect 
+```{Correlations and Regressions}
+#.#Checking to confirm this exists, or else run code above under the Stats header
+poll_data_visits2
+
+#1. 2021 partial and 2022
+visits_data_allSimple = left_join(poll_data_visits2, veg_data) %>% filter(!is.na(tran_num_flwrn_taxa))
+noSBBG <- visits_data_allSimple %>% filter(!site %in% c("SBBG"))
+
+##first checking that the visitor abundance and richness data is normal
+plot(density(visits_data_allSimple$vis_abun))
+ggqqplot(visits_data_allSimple$vis_abun)
+shapiro.test(visits_data_allSimple$vis_abun)
+###vis_abun is normal
+
+plot(density(visits_data_allSimple$vis_rich))
+ggqqplot(visits_data_allSimple$vis_rich)
+shapiro.test(visits_data_allSimple$vis_rich)
+###vis_rich is normal
+
+##regressions of abun and rich with tran_num_flwrn_taxa
+visabun_reg1= ggscatter(visits_data_allSimple, x="vis_abun", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+###not sig
+
+visrich_reg1 = ggscatter(visits_data_allSimple, x="vis_rich", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+###sig p=0.025
+model<- lm(tran_num_flwrn_taxa ~ vis_rich, data=visits_data_allSimple)
+summary(model)
+
+###downloading figures
+ggsave(plot=visabun_reg1, filename="figures/VegRegressionVisAbun_ALL.png", height=10, width=15, units="cm", dpi=300)
+ggsave(plot=visrich_reg1, filename="figures/VegRegressionVisRich_ALL.png", height=10, width=15, units="cm", dpi=300)
+
+#without SBBG 
+visrich_reg1NOSBBG = ggscatter(noSBBG, x="vis_rich", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE) + xlab("Visitor Richness") + ylab("Number of different flowering plant taxa on transect")
+visrich_reg1NOSBBG
+###sig p=0.038
+ggsave(plot=visrich_reg1NOSBBG, filename="figures/VegRegressionVisRich_ALLnoSBBG.png", height=10, width=15, units="cm", dpi=300)
+
+#2. 2022 only. Going through the same methods as for 2021 and 2022 above 
+visits_data_2022only = left_join(poll_data_visits2, veg_data) %>% filter(year=="2022") %>%filter(!is.na(garden_fls_bin))
+visits_data_2022only$tran_num_fls_UNITadjustment=as.numeric(visits_data_2022only$tran_num_fls_UNITadjustment)
+
+##first checking that the visitor abundance and richness data is normal
+plot(density(visits_data_2022only$vis_abun))
+ggqqplot(visits_data_2022only$vis_abun)
+shapiro.test(visits_data_2022only$vis_abun)
+###vis_abun is normal
+
+plot(density(visits_data_2022only$vis_rich))
+ggqqplot(visits_data_2022only$vis_rich)
+shapiro.test(visits_data_2022only$vis_rich)
+###vis_rich is normal
+
+##Regressions, significant=garden native flwrning taxa on vis abun and rich, tran_num flwrn taxa on vis rich only, tran_num_native flwrn_Taxa on vis abun and rich, number of native flowers on transect on vis abun only, number of all flowers on transect on vis abun only
+visabun_reg2a= ggscatter(visits_data_2022only, x="vis_abun", y="garden_native_taxa_flwrng", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg2a
+###sig
+
+visabun_reg2b= ggscatter(visits_data_2022only, x="vis_abun", y="garden_native_flwrs", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg2b
+###not sig
+
+visabun_reg2c= ggscatter(visits_data_2022only, x="vis_abun", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg2c
+###not sig
+
+visabun_reg2d= ggscatter(visits_data_2022only, x="vis_abun", y="tran_num_native_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg2d
+###sig
+
+visabun_reg2e= ggscatter(visits_data_2022only, x="vis_abun", y="tran_num_native_fls", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg2e
+###sig
+
+visabun_reg2f= ggscatter(visits_data_2022only, x="vis_abun", y="tran_num_fls_UNITadjustment", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg2f
+###sig
+
+##Vis Rich
+visrich_reg2a= ggscatter(visits_data_2022only, x="vis_rich", y="garden_native_taxa_flwrng", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg2a
+###sig
+
+visrich_reg2b= ggscatter(visits_data_2022only, x="vis_rich", y="garden_native_flwrs", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg2b
+###not sig
+
+visrich_reg2c= ggscatter(visits_data_2022only, x="vis_rich", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg2c
+###sig
+
+visrich_reg2d= ggscatter(visits_data_2022only, x="vis_rich", y="tran_num_native_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg2d
+###sig
+
+visrich_reg2e= ggscatter(visits_data_2022only, x="vis_rich", y="tran_num_native_fls", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg2e
+###not sig
+
+visrich_reg2f= ggscatter(visits_data_2022only, x="vis_rich", y="tran_num_fls_UNITadjustment", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg2f
+###not sig
+```
+
+```{r, Doing the sane regression as above but removing SBBG}
+
+#3. 2022 only. And no SBBG
+visits_data_22noSBBG = left_join(poll_data_visits2, veg_data) %>% filter(year=="2022") %>%filter(!is.na(garden_fls_bin)) %>% filter(!site %in% c("SBBG"))
+visits_data_22noSBBG$tran_num_fls_UNITadjustment=as.numeric(visits_data_22noSBBG$tran_num_fls_UNITadjustment)
+
+##first checking that the visitor abundance and richness data is normal
+plot(density(visits_data_22noSBBG$vis_abun))
+ggqqplot(visits_data_22noSBBG$vis_abun)
+shapiro.test(visits_data_22noSBBG$vis_abun)
+###vis_abun is normal
+
+plot(density(visits_data_22noSBBG$vis_rich))
+ggqqplot(visits_data_22noSBBG$vis_rich)
+shapiro.test(visits_data_22noSBBG$vis_rich)
+###vis_rich is normal
+
+##Regressions, significant=garden native flwrning taxa on vis abun and rich, tran_num flwrn taxa on vis rich only, tran_num_native flwrn_Taxa on vis abun and rich, number of native flowers on transect on vis abun only, number of all flowers on transect on vis abun only
+visabun_reg3a= ggscatter(visits_data_22noSBBG, x="vis_abun", y="garden_native_taxa_flwrng", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg3a
+###NOT SIG
+
+visabun_reg3b= ggscatter(visits_data_22noSBBG, x="vis_abun", y="garden_native_flwrs", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg3b
+###not sig
+
+visabun_reg3c= ggscatter(visits_data_22noSBBG, x="vis_abun", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg3c
+###not sig
+
+visabun_reg3d= ggscatter(visits_data_22noSBBG, x="vis_abun", y="tran_num_native_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg3d
+###NOT SIG
+
+visabun_reg3e= ggscatter(visits_data_22noSBBG, x="vis_abun", y="tran_num_native_fls", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg3e
+###NOT SIG
+
+visabun_reg3f= ggscatter(visits_data_22noSBBG, x="vis_abun", y="tran_num_fls_UNITadjustment", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visabun_reg3f
+###NOT SIG
+
+##Vis Rich
+visrich_reg3a= ggscatter(visits_data_22noSBBG, x="vis_rich", y="garden_native_taxa_flwrng", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg3a
+###NOT SIG
+
+visrich_reg3b= ggscatter(visits_data_22noSBBG, x="vis_rich", y="garden_native_flwrs", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg3b
+###not sig
+
+visrich_reg3c= ggscatter(visits_data_22noSBBG, x="vis_rich", y="tran_num_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE) + xlab("Visitor Group Richness") + ylab("Number of different flowering plant taxa on transect")
+visrich_reg3c
+###sig!! (still sig even without SBBG included)
+
+visrich_reg3d= ggscatter(visits_data_22noSBBG, x="vis_rich", y="tran_num_native_flwrn_taxa", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg3d
+###NOT SIG
+
+visrich_reg3e= ggscatter(visits_data_22noSBBG, x="vis_rich", y="tran_num_native_fls", add="reg.line", conf.int=TRUE, cor.coef=TRUE)
+visrich_reg3e
+###not sig
+
+visrich_reg3f= ggscatter(visits_data_22noSBBG, x="vis_rich", y="tran_num_fls_UNITadjustment", add="reg.line", conf.int=TRUE, cor.coef=TRUE) + xlab("Visitor Group Richness") + ylab("Number of transect flowers available")
+visrich_reg3f
+###SIG! (diff that with SBBG included)
+
+###downloading figures
+ggsave(plot=visrich_reg3c, filename="figures/VegRegressionVisRich_tranflwrtaxa_2022NOSBBG.png", height=10, width=15, units="cm", dpi=300)
+ggsave(plot=visrich_reg3f, filename="figures/VegRegressionVisRich_tranflwr_2022NOSBBG.png", height=10, width=15, units="cm", dpi=300)
+```
+
+##Old Code from this point on, not actively being used. But don't want to delete quite yet
+
+Plant Status (native % of gardens)
+Want to try and understand if the number of native plants in a garden impacts the pollinator abundance or richness. 
+```{r Plant Status Analysis Part 1}
+#going to make lists of the plants with observed pollinators at each site 
+site_plants = poll_data %>% group_by(site, plant_visiting) %>% mutate(num_obs=n()) %>% distinct(site, plant_visiting, .keep_all=FALSE) %>% filter(!is.na(plant_visiting))
+
+site_plants2 = left_join(site_plants, plant_info) %>% select(site, plant_visiting, status) %>% mutate(status = ifelse(str_detect(site, "SBBG"), "native", status), status = ifelse(str_detect(plant_visiting, "Sedum sp."), "not native", status), status = ifelse(str_detect(plant_visiting, "Unknown Purple"), "not native", status), status=ifelse(str_detect(plant_visiting, "Malva sp."), "native", status), status=ifelse(str_detect(plant_visiting, "Fabacaeae"), "not native", status), status=ifelse(str_detect(plant_visiting, 'R + W Sage'), "not native", status), status=ifelse(str_detect(plant_visiting, 'Senna sp.'), "not native", status), status=ifelse(str_detect(plant_visiting, 'Fragaria sp.'), "food plant", status), status = ifelse(str_detect(plant_visiting, "Unkown Purple"), "not native", status))
+
+site_plants3 = site_plants2 %>% group_by(site, status) %>% summarise(n=n())%>%  mutate(freq = n / sum(n)) %>% rename(num_plants="n")
+
+site_plants4 = pivot_wider(data=site_plants3, id_cols = site, names_from=status, values_from=c(num_plants, freq), values_fill=0) 
+#taking this into excel to fix up
+write.csv(site_plants4, "data/SitePlants.csv", na="")
+```
+
+Old code for graphs no longer using 
+###totaling up all visitors
+pollvisitation_summary <- poll_summarize_combo2 %>% group_by(SiteYear) %>% mutate(Allinsectstotal=sum(total, na.rm=TRUE), AvgAll =Allinsectstotal/num_visits) %>% distinct(SiteYear, .keep_all=TRUE)
+
+poll_summary2022 <- ggplot(pollvisitation_summary, aes(x=SiteYear, y=AvgAll, fill=Site)) + geom_col() + labs(x="Garden Site", y="Average number of individuals observed") + theme_bw()+ scale_y_continuous(expand=expansion(mult=c(0,0.01))) + theme(axis.text.x = element_text(angle=90, vjust=0.1, hjust=1)) 
+poll_summary2022
+
+ggsave(plot=poll_summary2022, filename="figures/poll_summary2022.png", height=20, width=30, units="cm", dpi=300)
+
+###getting more colors to make the graph
+nb.cols <- 19
+mycolors <- colorRampPalette(brewer.pal(8, "Set1"))(nb.cols)
+
+poll_summary2 <- ggplot(poll_summarize_combo2, aes(x=SiteYear, y=total, fill=factor(floral_visitor_ID))) + geom_col(position="fill", color="black") + labs(x="Garden Site", y="Proportional number of individuals observed", fill="Taxa") + theme_bw() +  scale_y_continuous(expand=expansion(mult=c(0,0.001))) +  scale_y_continuous(expand=expansion(mult=c(0,0.01))) + scale_fill_manual(values=mycolors)
+poll_summary2
+
+ggsave(plot=poll_summary2, filename="figures/poll_summary2_2022.png", height=20, width=30, units="cm", dpi=300)
+
+###Creating a table of the visitors to each site and their ID
+poll_summarize_combo3 <- poll_summarize_combo %>% select(SiteYear, floral_visitor_ID,total) %>% spread(floral_visitor_ID, total)
+
+table_site_visitors <- left_join(poll_summarize_site, poll_summarize_combo3)
+write.csv(table_site_visitors, "figures/SummaryTableSite.csv", na="")
+
